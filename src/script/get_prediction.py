@@ -1,4 +1,6 @@
+from fnmatch import fnmatch
 import joblib
+from matplotlib import pyplot as plt
 import pandas as pd
 import parselmouth
 from parselmouth.praat import call
@@ -17,11 +19,22 @@ pd.set_option('display.max_columns', 1000)
 
 flag_extract_mfcc = False
 
-file_paths = ["/Users/tomas/Documents/Tese/Predictive-models-Parkinson/data/temp/Testes/audio_teste13.wav"]
+testfile_table_path = "data/tables/testfiles"
 
 models_path = "data/models/italian"
 
-testfile_table_path = "data/tables/testfiles"
+
+
+def getListOfAudioPaths(dir_path):
+    res= []
+    pattern = "*.wav"
+
+    for path, subdirs, files in os.walk(dir_path):
+        for name in files:
+            if fnmatch(name, pattern):
+                res.append(os.path.join(dir_path,name))
+    return(res)
+
 
 
 def getFeatures(voiceID, f0min, f0max, unit):
@@ -133,8 +146,8 @@ def outliearTreatment(df):
         IQR = Q3 - Q1
         whisker = Q1 + 1.5 * IQR
         LowerBound = Q1- 1.5 * IQR
-        df[columnName] = df[columnName].apply(lambda x : whisker if x>whisker else x)
-        df[columnName] = df[columnName].apply(lambda x : LowerBound if x<LowerBound else x)
+        df.loc[:, columnName] = df[columnName].apply(lambda x: whisker if x > whisker else x)
+        df.loc[:, columnName] = df[columnName].apply(lambda x : LowerBound if x<LowerBound else x)
     return df
 
 def dropnas(features_df):
@@ -217,6 +230,7 @@ def loadModelAndPredict(reduced_features_df):
         predictions.loc[i] = {'Model': model_dict["name"], 'Predicted_Probability': positive_class_prob, 'Predicted_Class': model_dict["model"].predict(new_data_scaled_df)}
 
     print(predictions)
+    return predictions.loc[len(predictions)-1]
     
 
 def process_data(original_features_df):
@@ -238,12 +252,12 @@ def process_data(original_features_df):
     return reduced_features_df, reduced_features_path
 
 #Principal function
-def getProbabilities(file_path):
+def getProbabilities(file_paths):
 
     #EXTRACTION
 
     #Extract features from given file
-    original_features_df = getFeaturesFromFile(file_path)
+    original_features_df = getFeaturesFromFile(file_paths)
 
     
     #PROCESSING
@@ -255,27 +269,34 @@ def getProbabilities(file_path):
 
 
     #APPLY MODEL
-    loadModelAndPredict(reduced_features_df)
+    return loadModelAndPredict(reduced_features_df)
 
 
 
+
+file_paths = getListOfAudioPaths('/Users/tomas/Documents/Tese/Predictive-models-Parkinson/data/Czech_PD')
+counter_pos = 0
+counter_neg = 0
+avg = 0
 for path in file_paths:
-    getProbabilities(path)
+    probs = getProbabilities(path)
+    if probs['Predicted_Class'] == 0:
+        counter_neg += 1
+    else:
+        counter_pos += 1
+    avg += probs['Predicted_Probability']
+
+print("\n\n")
+print("Average prediction: ", avg/(counter_neg+counter_pos))
+print("0-1 ratio: ", counter_neg*100/(counter_neg+counter_pos),"-" ,counter_pos*100/(counter_pos+counter_neg))
 
 
 
 
+#FOR Testing models on new data/ debugging
 
 
-
-
-
-
-
-
-#FOR DEBUGGING
-
-# def ModelsTest(reduced_features_df, X_test, y_test):
+# def ModelsTest(reduced_features_df, y_test):
 #     scaler_path = os.path.join(models_path , 'scaler.save') 
 #     features_names_path = os.path.join(models_path , 'features_names.joblib') 
 
@@ -292,6 +313,7 @@ for path in file_paths:
 #     bgcl = {"name":"Bagging", "model":joblib.load(os.path.join(models_path , 'bgcl_2.joblib'))}
 #     adabc = {"name":"AdaBoost", "model":joblib.load(os.path.join(models_path , 'adabc_2.joblib'))}
 #     xgbc = {"name":"XGBoost", "model":joblib.load(os.path.join(models_path , 'xgbc_2.joblib'))}
+#     nn = {"name":"Neural Network", "model":joblib.load(os.path.join(models_path , 'nn.joblib'))}
 #     voting = {"name":"Voting", "model":joblib.load(os.path.join(models_path , 'voting.joblib'))}
 
 
@@ -315,7 +337,7 @@ for path in file_paths:
 #     new_data_scaled_df = pd.DataFrame(scaler.transform(reduced_features_df.values), columns=features_names, index=reduced_features_df.index) 
 
 
-#     models = [lr, knn, nb, svm, rf, bgcl, adabc, xgbc, voting]
+#     models = [lr, knn, nb, svm, rf, bgcl, adabc, xgbc, nn, voting]
 
 #     for model in models:
 
@@ -323,32 +345,40 @@ for path in file_paths:
 #         print(model["name"])
 #         print(classification_report(y_test, y_pred))
 
-
-# #X_test = pd.read_csv('/Users/tomas/Desktop/X_test_original.csv')
-# #y_test = pd.read_csv('/Users/tomas/Desktop/y_test_original.csv')
-
-# dataset_df = pd.read_csv('/Users/tomas/Desktop/testdataset.csv')
-
-
-# # Calculate standard deviation and create a new column 'std_dev'
-# dataset_df['stdevF0'] = dataset_df[['meanF0', 'MDVP:Fhi(Hz)', 'MDVP:Flo(Hz)']].std(axis=1)
-
-# # Remove 'highest' and 'lowest' columns
-# dataset_df = dataset_df.drop(['MDVP:Fhi(Hz)', 'MDVP:Flo(Hz)'], axis=1)
-
-# # Display the updated DataFrame
-# print(dataset_df)
+#         #pd.set_option('display.max_rows', None)
+#         #table = predictedVsActualTable(model["model"], new_data_scaled_df, y_test)
+#         #pva_plot_lr_2 = predictedVsActualPlot(table)
+#         #print(table)
 
 
 
-# removed_outliers = outliearTreatment(dataset_df)
+# file_path = "/Users/tomas/Documents/Tese/Predictive-models-Parkinson/data/tables/UCI_Database/only_a_uci_train.csv"
+
+# # Define the columns to keep in X_test
+# features_to_keep = ["meanF0", "stdevF0", "hnr", "localJitter", "localabsoluteJitter",
+#                     "rapJitter", "ppq5Jitter", "ddpJitter", "localShimmer", "localdbShimmer",
+#                     "apq3Shimmer", "aqpq5Shimmer", "apq11Shimmer", "ddaShimmer"]
+
+# # Define the columns to keep in y_test
+# target_column = ["PD"]
+
+# # Read the CSV file into a DataFrame
+# df = pd.read_csv(file_path)
+
+# # Create X_test DataFrame with selected features
+# X_test = df[features_to_keep]
 
 
-# y_test = dataset_df["PD"]
-# X_test = removed_outliers.drop(columns=['PD'])
+# # Create y_test DataFrame with the target column
+# y_test = df[target_column]
 
-# print(y_test)
+# # Display the first few rows of X_test and y_test for verification
+# print("X_test:")
 # print(X_test)
 
-# ModelsTest(X_test, X_test, y_test)
+# print("\ny_test:")
+# print(y_test)
 
+# removed_outliers = outliearTreatment(X_test)
+
+# ModelsTest(removed_outliers, y_test)
