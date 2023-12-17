@@ -1,17 +1,11 @@
+import os
 from fnmatch import fnmatch
+
 import joblib
-from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 import parselmouth
 from parselmouth.praat import call
-import parselmouth
-import numpy as np
-import os
-
-
-import numpy as np
-import pandas as pd
-from sklearn.metrics import classification_report
 
 pd.set_option('display.width', 1000)
 pd.set_option('display.max_columns', 1000)
@@ -19,21 +13,24 @@ pd.set_option('display.max_columns', 1000)
 
 flag_extract_mfcc = False
 
-testfile_table_path = "data/tables/testfiles"
 
-models_path = "data/models/italian"
+#directory of audio files for prediction
+predict_dir = "data/Czech_PD"
+
+#path of trained model to load
+models_path = "data/models/italian/interpretable/"
 
 
 
 def getListOfAudioPaths(dir_path):
-    res= []
+    full_audiofile_paths= []
     pattern = "*.wav"
 
     for path, subdirs, files in os.walk(dir_path):
         for name in files:
             if fnmatch(name, pattern):
-                res.append(os.path.join(dir_path,name))
-    return(res)
+                full_audiofile_paths.append(os.path.join(dir_path,name))
+    return(full_audiofile_paths)
 
 
 
@@ -95,6 +92,7 @@ def extract_mfcc(voiceID):
 
 #get features for testfile
 def getFeaturesFromFile(path):
+    #extract features from audiofile
     testfile_outname = (os.path.basename(path) + '_original_features.csv')
 
 
@@ -124,10 +122,10 @@ def getFeaturesFromFile(path):
 
 
     
-    if not os.path.exists(testfile_table_path):
-        os.makedirs(testfile_table_path, exist_ok=False)
+    # if not os.path.exists(testfile_table_path):
+    #     os.makedirs(testfile_table_path, exist_ok=False)
 
-    original_features_df.to_csv(os.path.join(testfile_table_path, testfile_outname),index=False)
+    # original_features_df.to_csv(os.path.join(testfile_table_path, testfile_outname),index=False)
     return original_features_df
 
 
@@ -187,6 +185,7 @@ def dropnas(features_df):
 
 
 def loadModelAndPredict(reduced_features_df):
+    #loads saved sccaler and features from trained model
     scaler_path = os.path.join(models_path , 'scaler.save') 
     features_names_path = os.path.join(models_path , 'features_names.joblib') 
 
@@ -246,8 +245,6 @@ def process_data(original_features_df):
     reduced_features_path = (os.path.basename(path) + '_reduced_features.csv')
 
     
-    if not os.path.exists(testfile_table_path):
-        os.mkdir(testfile_table_path)
 
     return reduced_features_df, reduced_features_path
 
@@ -258,14 +255,13 @@ def getProbabilities(file_paths):
 
     #Extract features from given file
     original_features_df = getFeaturesFromFile(file_paths)
-
     
     #PROCESSING
     reduced_features_df, reduced_features_path = process_data(original_features_df)
     
 
     #save tables
-    reduced_features_df.to_csv(os.path.join(testfile_table_path, reduced_features_path),index=False)
+    #reduced_features_df.to_csv(os.path.join(testfile_table_path, reduced_features_path),index=False)
 
 
     #APPLY MODEL
@@ -274,7 +270,7 @@ def getProbabilities(file_paths):
 
 
 
-file_paths = getListOfAudioPaths('/Users/tomas/Documents/Tese/Predictive-models-Parkinson/data/Czech_PD')
+file_paths = getListOfAudioPaths(predict_dir)
 counter_pos = 0
 counter_neg = 0
 avg = 0
@@ -290,95 +286,3 @@ print("\n\n")
 print("Average prediction: ", avg/(counter_neg+counter_pos))
 print("0-1 ratio: ", counter_neg*100/(counter_neg+counter_pos),"-" ,counter_pos*100/(counter_pos+counter_neg))
 
-
-
-
-#FOR Testing models on new data/ debugging
-
-
-# def ModelsTest(reduced_features_df, y_test):
-#     scaler_path = os.path.join(models_path , 'scaler.save') 
-#     features_names_path = os.path.join(models_path , 'features_names.joblib') 
-
-
-#     # Load the trained logistic regression model 
-
-
-
-#     lr = {"name":"Logistic Regression", "model":joblib.load(os.path.join(models_path , 'lr_2.joblib'))}
-#     knn = {"name":"KNN", "model":joblib.load(os.path.join(models_path , 'knn_2.joblib'))}
-#     nb = {"name":"Naive Bayes", "model":joblib.load(os.path.join(models_path , 'nb.joblib'))}
-#     svm = {"name":"SVM", "model":joblib.load(os.path.join(models_path , 'svm_2.joblib'))}
-#     rf = {"name":"Random Forest", "model":joblib.load(os.path.join(models_path , 'rf_2.joblib'))}
-#     bgcl = {"name":"Bagging", "model":joblib.load(os.path.join(models_path , 'bgcl_2.joblib'))}
-#     adabc = {"name":"AdaBoost", "model":joblib.load(os.path.join(models_path , 'adabc_2.joblib'))}
-#     xgbc = {"name":"XGBoost", "model":joblib.load(os.path.join(models_path , 'xgbc_2.joblib'))}
-#     nn = {"name":"Neural Network", "model":joblib.load(os.path.join(models_path , 'nn.joblib'))}
-#     voting = {"name":"Voting", "model":joblib.load(os.path.join(models_path , 'voting.joblib'))}
-
-
-
-#     #Scaling
-
-#     # Load the saved MinMaxScaler
-     
-#     scaler = joblib.load(scaler_path)
-
-#     # Load the column names
-#     features_names_path = features_names_path
-#     features_names = joblib.load(features_names_path)
-
-#     # Assuming you already have a DataFrame named new_data_df
-#     # Ensure that the new data has the same columns as the original data
-#     # If not, you might need to preprocess it accordingly
-
-#     # Transform the new data using the loaded scaler
-#     #same scaling done in modeling
-#     new_data_scaled_df = pd.DataFrame(scaler.transform(reduced_features_df.values), columns=features_names, index=reduced_features_df.index) 
-
-
-#     models = [lr, knn, nb, svm, rf, bgcl, adabc, xgbc, nn, voting]
-
-#     for model in models:
-
-#         y_pred = model["model"].predict(new_data_scaled_df)
-#         print(model["name"])
-#         print(classification_report(y_test, y_pred))
-
-#         #pd.set_option('display.max_rows', None)
-#         #table = predictedVsActualTable(model["model"], new_data_scaled_df, y_test)
-#         #pva_plot_lr_2 = predictedVsActualPlot(table)
-#         #print(table)
-
-
-
-# file_path = "/Users/tomas/Documents/Tese/Predictive-models-Parkinson/data/tables/UCI_Database/only_a_uci_train.csv"
-
-# # Define the columns to keep in X_test
-# features_to_keep = ["meanF0", "stdevF0", "hnr", "localJitter", "localabsoluteJitter",
-#                     "rapJitter", "ppq5Jitter", "ddpJitter", "localShimmer", "localdbShimmer",
-#                     "apq3Shimmer", "aqpq5Shimmer", "apq11Shimmer", "ddaShimmer"]
-
-# # Define the columns to keep in y_test
-# target_column = ["PD"]
-
-# # Read the CSV file into a DataFrame
-# df = pd.read_csv(file_path)
-
-# # Create X_test DataFrame with selected features
-# X_test = df[features_to_keep]
-
-
-# # Create y_test DataFrame with the target column
-# y_test = df[target_column]
-
-# # Display the first few rows of X_test and y_test for verification
-# print("X_test:")
-# print(X_test)
-
-# print("\ny_test:")
-# print(y_test)
-
-# removed_outliers = outliearTreatment(X_test)
-
-# ModelsTest(removed_outliers, y_test)
