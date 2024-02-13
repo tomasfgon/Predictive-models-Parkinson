@@ -15,7 +15,7 @@ flag_extract_mfcc = False
 
 
 #directory of audio files for prediction
-predict_dir = "data/Czech_PD"
+predict_dir = "data/Italian_PD"
 
 #path of trained model to load
 models_path = "data/models/italian/interpretable/"
@@ -269,20 +269,5 @@ def getProbabilities(file_paths):
 
 
 
-
-file_paths = getListOfAudioPaths(predict_dir)
-counter_pos = 0
-counter_neg = 0
-avg = 0
-for path in file_paths:
-    probs = getProbabilities(path)
-    if probs['Predicted_Class'] == 0:
-        counter_neg += 1
-    else:
-        counter_pos += 1
-    avg += probs['Predicted_Probability']
-
-print("\n\n")
-print("Average prediction: ", avg/(counter_neg+counter_pos))
-print("0-1 ratio: ", counter_neg*100/(counter_neg+counter_pos),"-" ,counter_pos*100/(counter_pos+counter_neg))
-
+getListOfAudioPaths(predict_dir)
+getProbabilities(getListOfAudioPaths(predict_dir))
